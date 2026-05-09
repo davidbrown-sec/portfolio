@@ -5,22 +5,17 @@
 ![Data exfiltration confirmed via FTP (File Transfer Protocol) as the service used by attackers to transfer stolen data.](assets/Screenshot-2026-05-08-at-61028-PM.png)
 *Data exfiltration confirmed via FTP (File Transfer Protocol) as the service used by attackers to transfer stolen data.*
 
-
 ![Initial infection vector identified on hostname UL8R-MACHINE as the first system to display the ransom note.](assets/Screenshot-2026-05-08-at-43935-PM.png)
 *Initial infection vector identified on hostname UL8R-MACHINE as the first system to display the ransom note.*
-
 
 ![Ransomware impact analysis showing the ransom note appeared on 306 machines across the organization.](assets/Screenshot-2026-05-08-at-43730-PM.png)
 *Ransomware impact analysis showing the ransom note appeared on 306 machines across the organization.*
 
-
 ![Encrypted files used the extension .umadbro;umadbro as their ransomware file marker.](assets/Screenshot-2026-05-08-at-44222-PM.png)
 *Encrypted files used the extension .umadbro;umadbro as their ransomware file marker.*
 
-
 ![Identification of the attack type as ransomware based on file encryption and payment demand in ransom note.](assets/Screenshot-2026-05-08-at-43620-PM.png)
 *Identification of the attack type as ransomware based on file encryption and payment demand in ransom note.*
-
 
 ![Difficulty](hxxps://img.shields[.]io/badge/Difficulty-Intermediate-yellow)
 ![Platform](hxxps://img.shields[.]io/badge/Platform-KC7-blue)
@@ -152,7 +147,7 @@ Employees
 
 **Key Findings:**
 - **Role:** StackOverflow Copy Paster
-- **Email:** barry_shmelly[@]encryptodera.financial[.]com
+- **Email:** barry_shmelly[@]encryptoderafinancial[.]com
 - **IP:** 10.10.0.1
 - **Hostname:** IGOY-DESKTOP
 - **Username:** bashmelly
@@ -161,7 +156,7 @@ Employees
 
 ```kql
 Email
-| where sender == "barry_shmelly@encryptodera.financial.com"
+| where sender == "barry_shmelly@encryptoderafinancial.com"
 | where timestamp >= datetime(2024-1-16)
 ```
 
@@ -169,6 +164,7 @@ Email
 - **Jan 16 Subject:** "I'm not coming in today. I'm sick of this place. We're all getting laid off anyway."
 - **Recipients:** Social Media Managers (Jarrod Rodriguez and others)
 - **Jan 18 Subject to CEO:** "YOU ARE A GREEDY PIG!!!! WHAT IS WRONG WITH YOU?????"
+- **CEO:** Les Goh, Chief Executive Officer (10.10.0.33, ELRE-LAPTOP)
 
 #### Question 6-9: Suspicious Browsing History
 
@@ -373,6 +369,7 @@ FileCreationEvents
 ```
 
 **Affected Machines:** 3 (6W91-MACHINE, 41QI-LAPTOP, 3RMKC-DESKTOP)
+- **Additional Users Compromised:** datuitt
 
 ```kql
 Email
@@ -381,7 +378,8 @@ Email
 
 **Phishing Email:**
 - **From:** barry_shmelly[@]encryptoderafinancial[.]com (compromised account)
-- **To:** Multiple Social Media Managers and Robin Kirby
+- **To:** Multiple Social Media Managers and Robin Kirby (robin_kirby[@]encryptoderafinancial[.]com)
+- **Additional Recipients:** nancy_owens[@]encryptoderafinancial[.]com
 - **Subject:** "Critical: Network Security Vulnerability Detected"
 - **Link:** `http://update-finance-security.biz/public/public/Company_Financials_Q1_2024_Review.xlsx.exe`
 - **Timestamp:** 2024-02-01T03:59:30Z
@@ -406,6 +404,7 @@ AuthenticationEvents
 - **Source IP:** 143.38[.]175[.]105
 - **Target:** MAIL-SERVER01
 - **Password Hash:** 228cea65b4f79bd8ba468eb99490defc
+- **User Agent:** Mozilla/5.0 (Windows 95; nl-NL)
 
 ```kql
 let hosts = ProcessEvents
@@ -465,6 +464,8 @@ AuthenticationEvents
 
 **Credential Origin:** GJ95-LAPTOP (Valerie Orozco's machine)
 - **Role:** System Administrator
+- **IP:** 10.10.0.18
+- **Username:** vaorozco
 
 ```kql
 ProcessEvents
@@ -473,61 +474,6 @@ ProcessEvents
 ```
 
 **Credential Dumping Tool:** `totally_not_mimikatz.exe` (Mimikatz - MITRE ATT&CK S0002)
-**Command:** `sekurlsa::logonpasswords`
+**Command:** `totally_not_mimikatz.exe "sekurlsa::logonpasswords"`
 
-```kql
-Email
-| where sender contains "barry" and recipient contains "Valerie"
 ```
-
-**Phishing Attempt:**
-- **To:** valerie_orozco[@]encryptoderafinancial[.]com
-- **From:** barry_shmelly[@]encryptoderafinancial[.]com
-- **Timestamp:** 2024-02-01T02:40:30Z
-- **Subject:** "Urgent: Network Security"
-- **Link:** `http://update-finance-security.biz/public/images/files/Employee_Contact_List_Updated_March_2024.docx.exe`
-
-**Status:** Valerie did NOT click the link
-
-#### Question 7-11: Alternate Compromise Vector
-
-```kql
-AuthenticationEvents
-| where hostname contains "GJ95-LAPTOP"
-| distinct username
-```
-
-**Accounts:** vaorozco, systadmi_local_admin, lihenry_domain_admin
-
-```kql
-AuthenticationEvents
-| where username contains "systadmi_local_admin"
-| distinct hostname
-| count
-```
-
-**Scope:** 10 hosts compromised with systadmi_local_admin account
-
-```kql
-let hosts = FileCreationEvents
-| where filename has "screenconnect"
-| distinct hostname;
-AuthenticationEvents
-| where hostname in (hosts)
-| where username has "systadmi"
-| where result has "Successful"
-| join (Employees | project ip_addr,role,email_addr,name) 
-  on $left.src_ip==$right.ip_addr
-| project SourceIpName=name, a="who is a", SourceIpUserRole=role, 
-  b="logged into", hostname, c="using", username, d="at", timestamp
-```
-
-**Finding:** Robin Kirby (non-IT role) improperly using systadmi_local_admin credentials
-
-```kql
-Email
-| where sender contains "barry" and recipient contains "robin"
-```
-
-**Robin Kirby Phishing:**
-- **Timestamp:** 2024-02-01T03:59:
