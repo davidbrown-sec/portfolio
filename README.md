@@ -19,7 +19,7 @@ Security research, CTF solutions, threat intelligence reports, and detection eng
 
 ## Contents
 
-- [🚩 CTF Writeups](#ctf-writeups) (5)
+- [🚩 CTF Writeups](#ctf-writeups) (6)
 
 ## 🚩 CTF Writeups
 
@@ -32,6 +32,7 @@ Capture The Flag challenge solutions and walkthroughs
 | 2026-05-10 | [Kql201](ctf-writeups/kql201/README.md) | — | A KQL (Kusto Query Language) training challenge covering intermediate techniques for security log analysis, aggregation,... |
 | 2026-05-08 | [Inside Encryptodera: An Insider Threat Scenario - CTF Writeup](ctf-writeups/inside-encryptodera/README.md) | — | Data exfiltration confirmed via FTP (File Transfer Protocol) as the service used by attackers to transfer stolen data. |
 | 2026-05-06 | [Crosstalk CTF Writeup](ctf-writeups/crosstalk/README.md) | — | A digital forensics and incident response (DFIR) analysis focusing on persistence mechanisms and suspicious file activit... |
+| 2026-05-10 | [Critical Compromise in Chicago - ICS](ctf-writeups/criticalcompromiseinchicago-ics/README.md) | — | A sophisticated nation-state cyberattack against SCADA systems and critical infrastructure, featuring multi-stage phishi... |
 
 ---
 
