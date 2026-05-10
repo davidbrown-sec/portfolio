@@ -19,7 +19,7 @@ Security research, CTF solutions, threat intelligence reports, and detection eng
 
 ## Contents
 
-- [🚩 CTF Writeups](#ctf-writeups) (6)
+- [🚩 CTF Writeups](#ctf-writeups) (5)
 
 ## 🚩 CTF Writeups
 
