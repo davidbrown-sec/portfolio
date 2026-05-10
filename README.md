@@ -27,7 +27,6 @@ Capture The Flag challenge solutions and walkthroughs
 
 | Date | Write-up | Difficulty | Description |
 |------|----------|------------|-------------|
-| 2026-05-08 | [Titan Shield: Microsoft Defender XDR Showcase CTF](ctf-writeups/topic/README.md) | — | KQL query identifying James Douglas's hostname as UB9I-DESKTOP, enabling device-specific investigation of malicious game... |
 | 2026-05-10 | [Titan Shield: Microsoft Defender XDR CTF Walkthrough](ctf-writeups/titan-shield/README.md) | Intermediate | KQL query identifying James Douglas's hostname as UB9I-DESKTOP, enabling device-specific investigation of malicious game... |
 | 2026-05-07 | [SOLVI SYSTEMS: A Tale of Supply Chains and ICS](ctf-writeups/solvi-systems-a-tale-of-supply-chains-and-ics/README.md) | — | A full-chain supply chain compromise investigation targeting Industrial Control Systems (ICS) infrastructure serving pow... |
 | 2026-05-10 | [Kql201](ctf-writeups/kql201/README.md) | — | A KQL (Kusto Query Language) training challenge covering intermediate techniques for security log analysis, aggregation,... |
