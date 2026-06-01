@@ -1,4 +1,4 @@
-# David Brown — Cybersecurity Portfolio
+# David Brown — KC7 CTF Writeups
 
 > SOC Analyst · DFIR · Threat Intelligence · Detection Engineering
 
